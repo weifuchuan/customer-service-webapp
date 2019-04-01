@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "*": ["types/*"]
+    },
+    "outDir": "build/dist",
+    "module": "esnext",
+    "target": "es5",
+    "lib": ["es6", "dom", "es2015"],
+    "sourceMap": true,
+    "allowJs": false,
+    "checkJs": false,
+    "experimentalDecorators": true,
+    "jsx": "react",
+    "importHelpers": true,
+    "moduleResolution": "node", 
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "suppressImplicitAnyIndexErrors": true,
+    "noUnusedLocals": false,
+    "allowSyntheticDefaultImports": true,
+    "noUnusedParameters": false,
+    "downlevelIteration": true,
+    "allowUnreachableCode": true,
+    "skipLibCheck": true,
+    "locale": "zh-CN"
+  },
+  "include": [
+    "src",
+    "scripts",
+    "config"
+  ],
+  "exclude": [
+    "node_modules",
+    "build",
+    "flow-typed"
+  ],
+  "module": "ESNext"
+}
