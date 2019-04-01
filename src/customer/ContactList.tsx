@@ -1,15 +1,16 @@
-import Avatar from '@/common/components/Avatar';
-import Badge from '@/common/components/Badge';
-import Scrollable from '@/common/components/Scrollable';
-import { AccountBaseInfo, IOnlineOfflinePushPayload } from '@/common/im';
-import message from '@/common/kit/message';
-import { GetProps } from '@/common/kit/types';
-import colors from '@/common/styles/colors';
-import { autorun } from 'mobx';
-import { observer, useObservable } from 'mobx-react-lite';
-import React, { useEffect } from 'react';
-import styled, { StyledComponent } from 'styled-components';
-import { useImClient } from './store';
+import Avatar from "@/common/components/Avatar";
+import Badge from "@/common/components/Badge";
+import Scrollable from "@/common/components/Scrollable";
+import { AccountBaseInfo, IOnlineOfflinePushPayload } from "@/common/im";
+import message from "@/common/kit/message";
+import { GetProps } from "@/common/kit/types";
+import colors from "@/common/styles/colors";
+import { autorun } from "mobx";
+import { observer, useObservable } from "mobx-react-lite";
+import React, { useEffect } from "react";
+import styled, { StyledComponent } from "styled-components";
+import { useImClient } from "./store";
+import useOnlineOfflineMsg from "@/common/hooks/useOnlineOfflineMsg";
 
 const ContactList = observer(
   ({
@@ -23,50 +24,28 @@ const ContactList = observer(
   }) => {
     const imClient = useImClient();
 
-    useEffect(() => {
-      const online = (msg: IOnlineOfflinePushPayload) => {
-        message.info(`“${msg.nickName}”已上线。`, 1);
-      };
-
-      const offline = (msg: IOnlineOfflinePushPayload) => {
-        message.info(`“${msg.nickName}”已下线。`, 1);
-      };
-
-      imClient.bus.addListener('online', online);
-      imClient.bus.addListener('offline', offline);
-
-      return () => {
-        imClient.bus.removeListener('online', online);
-        imClient.bus.removeListener('offline', offline);
-      };
-    }, []);
+    useOnlineOfflineMsg(imClient);
 
     return (
-      <Scrollable height={'100%'} width={'100%'}>
+      <Scrollable height={"100%"} width={"100%"}>
         {accountList.length === 0 ? (
           <_Empty>
             <span>无</span>
           </_Empty>
         ) : null}
-        {accountList
-          .sort((a, b) => {
-            if (a.lastMsgSendAt > b.lastMsgSendAt) return -1;
-            else if (a.lastMsgSendAt < b.lastMsgSendAt) return 1;
-            return 0;
-          })
-          .map((account) => {
-            return (
-              <ContactItem
-                account={account}
-                selected={selected && account.id === selected.id}
-                key={account.id}
-                onClick={() => {
-                  if ((selected && account.id !== selected.id) || !selected)
-                    onSelected(account);
-                }}
-              />
-            );
-          })}
+        {accountList.map(account => {
+          return (
+            <ContactItem
+              account={account}
+              selected={selected && account.id === selected.id}
+              key={account.id}
+              onClick={() => {
+                if ((selected && account.id !== selected.id) || !selected)
+                  onSelected(account);
+              }}
+            />
+          );
+        })}
       </Scrollable>
     );
   }
@@ -91,30 +70,45 @@ const ContactItem = observer(
   }) => {
     const imClient = useImClient();
 
-    const state = useObservable({
-      remindCount: 0
-    });
+    // const state = useObservable({
+    //   remindCount: 0
+    // });
 
-    useEffect(
-      () => {
-        const close = autorun(async () => {
-          if (imClient.otherIdToRoom.has(account.id)) {
-            const roomKey = imClient.otherIdToRoom.get(account.id)!.roomKey;
-            if (imClient.roomKeyToRoom.has(roomKey)) {
-              state.remindCount =
-                imClient.roomKeyToRoom.get(roomKey)!.remindCount || 0;
-            } else {
-              await imClient.fetchRoomInfo(1, account.id);
-            }
-          } else {
-            await imClient.fetchRoomInfo(1, account.id);
-          }
-        });
+    const room = imClient.otherIdToRoom.get(account.id);
 
-        return close;
-      },
-      [ account ]
-    );
+    const remindCount = room
+      ? imClient.roomKeyToRoom.has(room.roomKey)
+        ? room.remindCount
+        : 0
+      : 0;
+
+    useEffect(() => {
+      if (!imClient.otherIdToRoom.has(account.id)) {
+        imClient.fetchRoomInfo(1, account.id);
+      }
+    }, [account.id]);
+
+    //
+    // useEffect(
+    //   () => {
+    //     const close = autorun(async () => {
+    //       if (imClient.otherIdToRoom.has(account.id)) {
+    //         const roomKey = imClient.otherIdToRoom.get(account.id)!.roomKey;
+    //         if (imClient.roomKeyToRoom.has(roomKey)) {
+    //           state.remindCount =
+    //             imClient.roomKeyToRoom.get(roomKey)!.remindCount || 0;
+    //         } else {
+    //           await imClient.fetchRoomInfo(1, account.id);
+    //         }
+    //       } else {
+    //         await imClient.fetchRoomInfo(1, account.id);
+    //       }
+    //     });
+    //
+    //     return close;
+    //   },
+    //   [ account ]
+    // );
 
     return (
       <_ContactItem selected={!!selected} onClick={onClick}>
@@ -127,17 +121,17 @@ const ContactItem = observer(
         <div>
           <span>{account.nickName}</span>
           <span style={{ color: colors.DarkSlateGray }}>
-            {account.isOnline ? '' : '（离线）'}
+            {account.isOnline ? "" : "（离线）"}
           </span>
         </div>
-        {selected ? null : <Badge count={state.remindCount} />}
+        {selected ? null : <Badge count={remindCount} />}
       </_ContactItem>
     );
   }
 );
 
 const _ContactItem: StyledComponent<
-  'div',
+  "div",
   any,
   { selected: boolean },
   never

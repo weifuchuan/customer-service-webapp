@@ -91,30 +91,19 @@ const ContactItem = observer(
   }) => {
     const imClient = useImClient();
 
-    const state = useObservable({
-      remindCount: 0
-    });
+    const room = imClient.otherIdToRoom.get(account.id);
 
-    useEffect(
-      () => {
-        const close = autorun(async () => {
-          if (imClient.otherIdToRoom.has(account.id)) {
-            const roomKey = imClient.otherIdToRoom.get(account.id)!.roomKey;
-            if (imClient.roomKeyToRoom.has(roomKey)) {
-              state.remindCount =
-                imClient.roomKeyToRoom.get(roomKey)!.remindCount || 0;
-            } else {
-              await imClient.fetchRoomInfo(1, account.id);
-            }
-          } else {
-            await imClient.fetchRoomInfo(1, account.id);
-          }
-        });
+    const remindCount = room
+      ? imClient.roomKeyToRoom.has(room.roomKey)
+        ? room.remindCount
+        : 0
+      : 0;
 
-        return close;
-      },
-      [ account ]
-    );
+    useEffect(() => {
+      if (!imClient.otherIdToRoom.has(account.id)) {
+        imClient.fetchRoomInfo(1, account.id);
+      }
+    }, [account.id]);
 
     return (
       <_ContactItem selected={!!selected} onClick={onClick}>
@@ -130,7 +119,7 @@ const ContactItem = observer(
             {account.isOnline ? '' : '（离线）'}
           </span>
         </div>
-        {selected ? null : <Badge count={state.remindCount} />}
+        {selected ? null : <Badge count={remindCount} />}
       </_ContactItem>
     );
   }

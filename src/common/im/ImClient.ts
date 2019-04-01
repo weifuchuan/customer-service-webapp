@@ -1,5 +1,5 @@
-import { QueueingSubject } from 'queueing-subject';
-import { Observable, interval, Subscription } from 'rxjs';
+import { QueueingSubject } from "queueing-subject";
+import { Observable, interval, Subscription, timer } from "rxjs";
 import {
   switchMap,
   share,
@@ -7,15 +7,15 @@ import {
   filter,
   retryWhen,
   delay
-} from 'rxjs/operators';
+} from "rxjs/operators";
 import makeWebSocketObservable, {
   GetWebSocketResponses,
   WebSocketOptions,
   normalClosureMessage
-} from 'rxjs-websockets';
-import { ImPacket } from './ImPacket';
-import { Command } from './enums';
-import { observable, computed, action, flow, runInAction } from 'mobx';
+} from "rxjs-websockets";
+import { ImPacket } from "./ImPacket";
+import { Command } from "./enums";
+import { observable, computed, action, flow, runInAction } from "mobx";
 import {
   IPayload,
   ICallRespPayload,
@@ -24,21 +24,23 @@ import {
   IOnlineNotifySubscribeReqPayload,
   IChatReqPayload,
   IClearRemindReqPayload
-} from './payload-model';
-import { IMessageDetailModel, IRoomInfoModel } from './model';
-import reduceArrayToMap from '../kit/functions/reduceArrayToMap';
-import EventEmitter from 'wolfy87-eventemitter';
-import patchToModelArray from '../kit/functions/patchToModelArray';
-import flatMap from 'lodash/flatMap';
-import uniq from 'lodash/uniq';
-import differenceWith from 'lodash/differenceWith';
+} from "./payload-model";
+import { IMessageDetailModel, IRoomInfoModel } from "./model";
+import reduceArrayToMap from "../kit/functions/reduceArrayToMap";
+import EventEmitter from "wolfy87-eventemitter";
+import patchToModelArray from "../kit/functions/patchToModelArray";
+import flatMap from "lodash/flatMap";
+import uniq from "lodash/uniq";
+import differenceWith from "lodash/differenceWith";
+import log from "@/common/kit/functions/log";
+import React from "react";
 // import ByteBuffer from 'bytebuffer';
 
 export type WebSocketPayload = string | ArrayBuffer | Blob;
 
 export interface ImClientConfig {
   url: string;
-  role: 'customer' | 'waiter';
+  role: "customer" | "waiter";
 }
 
 export class ImClient {
@@ -55,7 +57,7 @@ export class ImClient {
    * public state
    */
 
-  public readonly role: 'customer' | 'waiter';
+  public readonly role: "customer" | "waiter";
 
   public readonly bus: EventEmitter = new EventEmitter();
 
@@ -85,22 +87,58 @@ export class ImClient {
 
   @computed
   get idToAccount() {
-    return reduceArrayToMap(this.accounts, (account) => account.id);
+    return reduceArrayToMap(this.accounts, account => account.id);
   }
 
   @computed
   get roomKeyToRoom() {
-    return reduceArrayToMap(this.rooms, (room) => room.roomKey);
+    return reduceArrayToMap(this.rooms, room => room.roomKey);
   }
 
   @computed
   get otherIdToRoom() {
     return reduceArrayToMap(
       this.rooms.filter(
-        (room) => room.type === 1 && room.members && room.members.length > 0
+        room => room.type === 1 && room.members && room.members.length > 0
       ),
-      (room) => room.members.filter((id) => this._me!.id !== id)[0]
+      room => room.members.filter(id => this._me!.id !== id)[0]
     );
+  }
+
+  @computed
+  get sortedWaiterListByLastMsgSendAtDesc() {
+    return this.waiters
+      .map(account => {
+        return {
+          ...account,
+          lastMsgSendAt: this.otherIdToRoom.has(account.id)
+            ? this.otherIdToRoom.get(account.id)!.lastMsg.sendAt
+            : 0
+        };
+      })
+      .sort((a, b) => {
+        if (a.lastMsgSendAt > b.lastMsgSendAt) return -1;
+        else if (a.lastMsgSendAt < b.lastMsgSendAt) return 1;
+        return 0;
+      });
+  }
+
+  @computed
+  get sortedAccountListByLastMsgSendAtDesc() {
+    return this.accounts
+      .map(account => {
+        return {
+          ...account,
+          lastMsgSendAt: this.otherIdToRoom.has(account.id)
+            ? this.otherIdToRoom.get(account.id)!.lastMsg.sendAt
+            : 0
+        };
+      })
+      .sort((a, b) => {
+        if (a.lastMsgSendAt > b.lastMsgSendAt) return -1;
+        else if (a.lastMsgSendAt < b.lastMsgSendAt) return 1;
+        return 0;
+      });
   }
 
   constructor(config: ImClientConfig) {
@@ -108,10 +146,10 @@ export class ImClient {
     this.socket$ = makeWebSocketObservable<string>(config.url);
     this.output$ = this.socket$
       .pipe(
-        switchMap((get) => {
+        switchMap(get => {
           return get(
             this.input$.pipe(
-              map((packet) => {
+              map(packet => {
                 // @ts-ignore
                 packet.command = Command[packet.command];
                 return JSON.stringify(packet) as WebSocketPayload;
@@ -121,7 +159,7 @@ export class ImClient {
         })
       )
       .pipe(
-        map((raw) => {
+        map(raw => {
           let packet: any;
           try {
             packet = JSON.parse(raw);
@@ -132,7 +170,8 @@ export class ImClient {
           return packet as ImPacket;
         })
       )
-      .pipe(map((v) => observable(v)))
+      .pipe(map(v => observable(v)))
+      // Maybe not good enough?
       // .pipe(
       //   retryWhen((errors) =>
       //     errors
@@ -160,21 +199,21 @@ export class ImClient {
   async start() {
     this.startPromise = (async () => {
       this.output$.subscribe(
-        (message) => {},
+        message => {},
         (error: Error) => {
           const { message } = error;
           if (message === normalClosureMessage) {
-            console.log('server closed the websocket connection normally');
+            console.log("server closed the websocket connection normally");
           } else {
-            console.log(
-              'socket was disconnected due to error:',
-              message,
-              error
-            );
+            console.log("No normal error, reconnect after 500ms. ");
+            if (!__DEV__) {
+              this.stop();
+              setTimeout(() => this.start(), 500);
+            }
           }
         },
         () => {
-          console.log('the connection was closed in response to the user');
+          console.log("the connection was closed in response to the user");
         }
       );
       this.onHeartbeat();
@@ -184,7 +223,7 @@ export class ImClient {
 
       await this.fetchMyAccountBaseInfo();
       await this.fetchJoinedRoomList();
-      if (this.role === 'customer') {
+      if (this.role === "customer") {
         await this.fetchWaiters();
       }
     })();
@@ -192,7 +231,7 @@ export class ImClient {
   }
 
   async stop() {
-    this.subscriptions.forEach((s) => s.unsubscribe());
+    this.subscriptions.forEach(s => s.unsubscribe());
     this.subscriptions = [];
   }
 
@@ -200,7 +239,7 @@ export class ImClient {
     ...commands: Command[]
   ): Observable<ImPacket<Payload>> {
     return this.output$.pipe(
-      filter((packet) => commands.findIndex((c) => c === packet.command) !== -1)
+      filter(packet => commands.findIndex(c => c === packet.command) !== -1)
     ) as Observable<ImPacket<Payload>>;
   }
 
@@ -222,7 +261,7 @@ export class ImClient {
   private callPromiseMap = new Map<string, (value?: any) => void>();
 
   async call(action: string, payload: object = {}, timeout?: number) {
-    const id = '' + Math.random() + '' + Date.now();
+    const id = "" + Math.random() + "" + Date.now();
     this.send({
       command: Command.COMMAND_CALL_REQ,
       payload: {
@@ -235,7 +274,7 @@ export class ImClient {
       this.callPromiseMap.set(id, resolve);
       timeout &&
         setTimeout(() => {
-          reject('timeout');
+          reject("timeout");
         }, timeout);
     });
   }
@@ -243,14 +282,14 @@ export class ImClient {
   private onCall() {
     const call$ = this.fork<ICallRespPayload>(Command.COMMAND_CALL_RESP);
     const subscription = call$.subscribe(
-      (packet) => {
+      packet => {
         const resolve = this.callPromiseMap.get(packet.payload.id);
         if (resolve) {
           resolve(observable(JSON.parse(packet.payload.ret)));
           this.callPromiseMap.delete(packet.payload.id);
         }
       },
-      (err) => {
+      err => {
         subscription.unsubscribe();
       },
       () => {
@@ -261,10 +300,6 @@ export class ImClient {
 
   private onHeartbeat() {
     const subscription = interval(ImClient.HEARTBEAT_RHYTHM).subscribe(() => {
-      console.log({
-        command: Command.COMMAND_HEARTBEAT_REQ,
-        payload: {}
-      }); 
       this.send({
         command: Command.COMMAND_HEARTBEAT_REQ,
         payload: {}
@@ -272,7 +307,7 @@ export class ImClient {
     });
     this.fork(Command.COMMAND_HEARTBEAT_RESP).subscribe(
       () => {},
-      (err) => {
+      err => {
         subscription.unsubscribe();
       },
       () => {
@@ -283,7 +318,7 @@ export class ImClient {
 
   private onRemindPush() {
     this.fork(Command.COMMAND_REMIND_PUSH)
-      .pipe(map((packet) => packet.payload as IRemindPushPayload))
+      .pipe(map(packet => packet.payload as IRemindPushPayload))
       .subscribe(
         flow(
           function*(
@@ -292,23 +327,26 @@ export class ImClient {
           ): IterableIterator<any> {
             // when a remind has pushed,
             // 1. fetch room info if not exists in local
-            if (!this.roomKeyToRoom.has(payload.roomKey)) {
-              yield this.fetchRoomInfo(
+            let room = this.roomKeyToRoom.get(payload.roomKey)!;
+            if (!room) {
+              room = yield this.fetchRoomInfo(
                 1,
                 this._me!.id === payload.from ? payload.to : payload.from
               );
             }
-            const room = this.roomKeyToRoom.get(payload.roomKey)!;
             // 2. add remind count for room
-            if (this._me!.id !== payload.from) room.remindCount++;
+            if (this._me!.id !== payload.from) {
+              if (!room.remindCount) {
+                room.remindCount = 0;
+              }
+              room.remindCount++;
+            }
             // 3. set last msg for room
             room.lastMsg = payload;
             // 4. fetch sender info if not exists in local
-            if (
-              !this.idToAccount.has(payload.from) &&
-              this.me!.id !== payload.from
-            ) {
-              yield this.fetchAccountBaseInfo(payload.from);
+            let sender = this.idToAccount.get(payload.from)!;
+            if (!sender && this.me!.id !== payload.from) {
+              sender = yield this.fetchAccountBaseInfo(payload.from);
             }
             // 5. append msg from this remind to msg list
             if (!this.roomKeyToMessageList.has(room.roomKey)) {
@@ -317,7 +355,7 @@ export class ImClient {
             const msgList = this.roomKeyToMessageList.get(room.roomKey)!;
             msgList.push(payload);
 
-            this.bus.emit('remind', payload);
+            this.bus.emit("remind", payload);
           }.bind(this)
         )
       );
@@ -335,8 +373,8 @@ export class ImClient {
         ): IterableIterator<any> {
           let isOnlineOld = false;
 
-          if (this.role === 'customer') {
-            let i = this.waiters.findIndex((a) => a.id === packet.payload.id);
+          if (this.role === "customer") {
+            let i = this.waiters.findIndex(a => a.id === packet.payload.id);
             if (i !== -1) {
               isOnlineOld = !!this.waiters[i].isOnline;
               this.waiters[i].isOnline =
@@ -348,7 +386,7 @@ export class ImClient {
               });
             }
           } else {
-            let i = this.accounts.findIndex((a) => a.id === packet.payload.id);
+            let i = this.accounts.findIndex(a => a.id === packet.payload.id);
             if (i !== -1) {
               isOnlineOld = !!this.accounts[i].isOnline;
               this.accounts[i].isOnline =
@@ -361,9 +399,9 @@ export class ImClient {
             }
           }
           if (packet.command === Command.COMMAND_ONLINE_PUSH) {
-            !isOnlineOld && this.bus.emit('online', packet.payload);
+            !isOnlineOld && this.bus.emit("online", packet.payload);
           } else {
-            isOnlineOld && this.bus.emit('offline', packet.payload);
+            isOnlineOld && this.bus.emit("offline", packet.payload);
           }
         }.bind(this)
       )
@@ -371,7 +409,7 @@ export class ImClient {
   }
 
   async fetchRoomInfo(type: 1 /* 一对一 */ | 2 /* 群聊 */, to: string) {
-    const roomInfo: RoomInfo = await this.call('fetchRoomInfo', {
+    const roomInfo: RoomInfo = await this.call("fetchRoomInfo", {
       type,
       to
     });
@@ -380,16 +418,16 @@ export class ImClient {
   }
 
   async fetchMyAccountBaseInfo() {
-    const account: AccountBaseInfo = await this.call('fetchMyAccountBaseInfo');
+    const account: AccountBaseInfo = await this.call("fetchMyAccountBaseInfo");
     this._me = account;
     return account;
   }
 
   async fetchAccountBaseInfo(id: string) {
-    const ret = await this.call('fetchAccountBaseInfo', { id });
-    if (ret && ret.state === 'ok') {
+    const ret = await this.call("fetchAccountBaseInfo", { id });
+    if (ret && ret.state === "ok") {
       const account = observable(ret.account as AccountBaseInfo);
-      const i = this.accounts.findIndex((acc) => acc.id === account.id);
+      const i = this.accounts.findIndex(acc => acc.id === account.id);
       if (i !== -1) {
         this.accounts[i] = account;
       } else {
@@ -397,22 +435,22 @@ export class ImClient {
       }
       return account;
     } else {
-      throw 'account not exists';
+      throw "account not exists";
     }
   }
 
   async fetchJoinedRoomList() {
-    const ret = await this.call('fetchJoinedRoomList');
+    const ret = await this.call("fetchJoinedRoomList");
     const roomList = (ret.roomList as RoomInfo[]).filter(
-      (room) => room.members && room.members.length > 0
+      room => room.members && room.members.length > 0
     );
     await flow(
       function*(this: ImClient): IterableIterator<any> {
-        patchToModelArray(roomList, this.rooms, (v) => v.roomKey);
+        patchToModelArray(roomList, this.rooms, v => v.roomKey);
         const allIdList = uniq(
           flatMap(
-            roomList.map((room) =>
-              room.members.filter((member) => member !== this.me!.id)
+            roomList.map(room =>
+              room.members.filter(member => member !== this.me!.id)
             )
           )
         );
@@ -424,7 +462,7 @@ export class ImClient {
   }
 
   async fetchAccountListBaseInfo(idList: string[]) {
-    const ret = await this.call('fetchAccountListBaseInfo', { idList });
+    const ret = await this.call("fetchAccountListBaseInfo", { idList });
     const list = (ret.accountList as AccountBaseInfo[]) || [];
     runInAction(() => {
       patchToModelArray(list, this.accounts);
@@ -449,36 +487,35 @@ export class ImClient {
       if (lastPage.lastPage) return false;
       pageNumber = lastPage.pageNumber + 1;
     }
-    const page: Page<
-      IMessageDetailModel
-    > = (await this.call('fetchMessagePage', {
-      roomKey,
-      pageNumber,
-      pageSize: 10
-    })).page;
+    const page: Page<IMessageDetailModel> = (await this.call(
+      "fetchMessagePage",
+      {
+        roomKey,
+        pageNumber,
+        pageSize: 10
+      }
+    )).page;
     runInAction(() => {
       this.roomKeyToLastMsgPage.set(roomKey, page);
       if (!this.roomKeyToMessageList.has(roomKey)) {
         this.roomKeyToMessageList.set(roomKey, []);
       }
       const list = this.roomKeyToMessageList.get(roomKey)!;
-      differenceWith(
-        page.list,
-        list,
-        (x, y) => x.msgKey === y.msgKey
-      ).forEach((msg) => {
-        list.unshift(msg);
-      });
+      differenceWith(page.list, list, (x, y) => x.msgKey === y.msgKey).forEach(
+        msg => {
+          list.unshift(msg);
+        }
+      );
     });
     if (page.lastPage) return false;
     return true;
   }
 
   async fetchWaiters() {
-    const ret = await this.call('fetchWaiters');
+    const ret = await this.call("fetchWaiters");
     const waiterList = ret.waiterList as (AccountBaseInfo)[];
     this.waiters.splice(0, this.waiters.length, ...waiterList);
-    this.subscribeOnlineNotify(waiterList.map((x) => x.id));
+    this.subscribeOnlineNotify(waiterList.map(x => x.id));
     return waiterList;
   }
 

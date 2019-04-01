@@ -9,7 +9,7 @@ const TerserPlugin = require('terser-webpack-plugin');
 
 export default merge(baseConfig as any, {
   mode: 'production',
-  devtool: "source-map", 
+  devtool: false,
 
   output: {
     path: resolveApp('build'),

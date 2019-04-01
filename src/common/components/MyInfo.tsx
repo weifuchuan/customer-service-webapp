@@ -9,11 +9,12 @@ import Avatar from '@/common/components/Avatar';
 
 interface MyInfoProps {
   nickName: string;
+  badge?:string;
   avatar: string;
   searchBoxProps?: ISearchBoxProps;
 }
 
-const MyInfo = ({ nickName, avatar, searchBoxProps }: MyInfoProps) => {
+const MyInfo = ({ nickName, badge, avatar, searchBoxProps }: MyInfoProps) => {
   return (
     <_MyInfo>
       <div>
@@ -27,6 +28,7 @@ const MyInfo = ({ nickName, avatar, searchBoxProps }: MyInfoProps) => {
         </div>
         <div>
           <span>{nickName}</span>
+          <span>{badge}</span>
         </div>
       </div>
       <div>

@@ -16,25 +16,22 @@ import { ImClient } from '@/common/im/ImClient';
 
 initializeIcons();
 
-export function render(__config?: GlobalConfig, elem?: Element) {
-  const config: typeof _config =
-    __config || (window as any).CUSTOMER_SERVICE_CONFIG || _config;
-
-  elem = elem ? elem : document.getElementById('root')!;
-
+export function render(
+  config: GlobalConfig = (window as any).CUSTOMER_SERVICE_CONFIG || _config,
+  elem: Element = document.getElementById('root')!
+) {
   ReactDOM.unmountComponentAtNode(elem);
 
   const store = new Store(config);
   const imClient = new ImClient({
     url: config.url,
-    role: 'waiter'
+    role: 'customer'
   });
-  imClient.start(); 
+  imClient.start();
   if (__DEV__) {
     (window as any).store = store;
     (window as any).toJS = toJS;
     (window as any).im = imClient;
-    (window as any).ImClient=ImClient;
 
     imClient.bus.addListener('remind', (payload: any) =>
       console.log('remind', toJS(payload))

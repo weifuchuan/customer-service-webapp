@@ -12,7 +12,7 @@ for (let name in entry) {
 
 export default merge.smart(baseConfig as any, {
 	mode: 'development',
-	devtool: 'eval-source-map', 
+	devtool: "eval",
 
 	output: {
 		path: resolveApp('dist/'),

@@ -1,8 +1,6 @@
 module.exports = {
   "presets": [
-    ["@babel/preset-env", {
-      "useBuiltIns": false
-    }],
+    "@babel/preset-env",
     "@babel/preset-react",
     "@babel/preset-typescript"
   ],
@@ -37,7 +35,7 @@ module.exports = {
       "libraryDirectory": "es",
       "style": false,
       "camel2DashComponentName": false
-    }, "import-material"], 
+    }, "import-material"],
     "babel-plugin-styled-components"
   ]
-}
+};

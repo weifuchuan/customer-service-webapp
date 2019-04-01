@@ -138,7 +138,7 @@ const ChatPanel = observer(() => {
       </div>
       {!store.currentContact ? (
         <_UnselectModal>
-          <span>请选择客服</span>
+          <span>请选择联系人</span>
         </_UnselectModal>
       ) : null}
     </_ChatPanel>
