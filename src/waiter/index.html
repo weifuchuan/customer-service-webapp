@@ -121,23 +121,18 @@
       You need to enable JavaScript to run this app.
     </noscript>
     <div id="root"></div>
-    <p>For no reason, Only supported to the lowest browser version:</p>
-    <p>chrome >= 55</p>
-    <p>edge >= 15</p>
-    <p>firefox >= 54</p>
-    <p>Of course, it can be supported to lower.</p>
 
     <script>
-      const renderBtn = document.querySelector("#render");
-      const urlInput = document.querySelector("#url");
+      var renderBtn = document.getElementById("render");
+      var urlInput = document.getElementById("url");
 
-      renderBtn.onclick = () => {
+      renderBtn.onclick = function() {
         if (urlInput.value) {
           window.render({
             url: "ws://127.0.0.1:7777?id=" + urlInput.value
-          });
+          })
         } else {
-          window.render();
+          window.render()
         }
       };
     </script>

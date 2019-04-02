@@ -141,9 +141,9 @@ export class ImClient {
       });
   }
 
-  constructor(config: ImClientConfig) {
+  constructor(config: ImClientConfig, options?: WebSocketOptions) {
     this.role = config.role;
-    this.socket$ = makeWebSocketObservable<string>(config.url);
+    this.socket$ = makeWebSocketObservable<string>(config.url, options);
     this.output$ = this.socket$
       .pipe(
         switchMap(get => {
@@ -290,6 +290,7 @@ export class ImClient {
         }
       },
       err => {
+        console.error(err);
         subscription.unsubscribe();
       },
       () => {
