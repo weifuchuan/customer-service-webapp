@@ -25,7 +25,7 @@ export function render(
   const store = new Store(config);
   const imClient = new ImClient({
     url: config.url,
-    role: 'customer'
+    role: 'waiter'
   });
   imClient.start();
   if (__DEV__) {

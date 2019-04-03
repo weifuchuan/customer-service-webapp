@@ -120,9 +120,11 @@ const ContactItem = observer(
         />
         <div>
           <span>{account.nickName}</span>
-          <span style={{ color: colors.DarkSlateGray }}>
-            {account.isOnline ? "" : "（离线）"}
-          </span>
+          {account.isOnline ? null : (
+            <span style={{ color: colors.DarkSlateGray, fontSize: "0.8rem" }}>
+              （离线）
+            </span>
+          )}
         </div>
         {selected ? null : <Badge count={remindCount} />}
       </_ContactItem>

@@ -3,11 +3,17 @@ import styled from 'styled-components';
 import { observer } from 'mobx-react-lite';
 import 'emoji-mart/css/emoji-mart.css';
 import { EmojiData, BaseEmoji } from 'emoji-mart';
-import { IconButton, PrimaryButton } from 'office-ui-fabric-react/lib/Button';
+import {
+  IconButton,
+  PrimaryButton,
+  DefaultButton,
+  IButtonProps
+} from 'office-ui-fabric-react/lib/Button';
 import { TextField, ITextField } from 'office-ui-fabric-react/lib/TextField';
-import { Callout } from 'office-ui-fabric-react/lib/Callout'; 
+import { Callout } from 'office-ui-fabric-react/lib/Callout';
 import useObject from '@/common/hooks/useObject';
 import { Spinner, SpinnerSize } from 'office-ui-fabric-react/lib/Spinner';
+import { loadTheme } from '@uifabric/styling';
 
 const Picker = lazy(() =>
   import('emoji-mart').then((mod) => ({ default: mod.Picker }))
@@ -22,48 +28,84 @@ function ChatInput({
 }) {
   const [ state, setState ] = useState({
     openEmojiPicker: false,
-    content: ''
+    content: '',
+    sendText: '发送（Enter）' as '发送（Enter）' | '发送（Ctrl+Enter）'
+  });
+
+  const sendMode = useObject({
+    mode: 'enter' as 'enter' | 'ctrlEnter'
   });
 
   const usedEmojiMap = useObject(new Map<string, string>());
 
   const emojiRef = useRef<HTMLDivElement>(null);
-  const contentEditorRef = useRef<ITextField>(null);
+  // const contentEditorRef = useRef<ITextField>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const addEmoji = useCallback(
     (emoji: EmojiData) => {
       usedEmojiMap.set((emoji as BaseEmoji).native, emoji.colons!);
-      const start = contentEditorRef.current!.selectionStart || 0;
-      const end = contentEditorRef.current!.selectionEnd || 0;
-      let content = contentEditorRef.current!.value || '';
+      const start = inputRef.current!.selectionStart || 0;
+      const end = inputRef.current!.selectionEnd || 0;
+      let content = inputRef.current!.value || '';
       content =
         content.substring(0, start) +
         (emoji as BaseEmoji).native +
         content.substring(end);
       setState({ ...state, openEmojiPicker: false, content });
-      contentEditorRef.current!.focus()
+      inputRef.current!.focus();
     },
     [ state, setState ]
   );
 
-  const send = useCallback(
-    async () => {
-      let content = contentEditorRef.current!.value;
-      if (content && content.trim()) {
-        if (content) {
-          usedEmojiMap.forEach((v, k) => {
-            content!.replace(new RegExp(k, 'g'), v);
-          });
-        }
-        if (await onSend(content)) {
-          setState({ ...state, content: '' });
-        }
-      } else {
+  const send = async () => {
+    let content = inputRef.current!.value;
+    if (content && content.trim()) {
+      if (content) {
+        usedEmojiMap.forEach((v, k) => {
+          content!.replace(new RegExp(k, 'g'), v);
+        });
+      }
+      if (
+        await onSend(
+          `<div>${content
+            .split('\n')
+            .map((line) => `<p>${line}</p>`)
+            .reduce((prev, curr) => prev + curr, '')}</div>`
+        )
+      ) {
         setState({ ...state, content: '' });
       }
-    },
-    [ onSend ]
-  );
+    } else {
+      setState({ ...state, content: '' });
+    }
+  };
+
+  const onKeyPress = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter') {
+      let doSend = false;
+      if (event.ctrlKey) {
+        if (sendMode.mode === 'ctrlEnter' && !event.shiftKey) {
+          doSend = true;
+        }
+      } else {
+        if (sendMode.mode === 'enter' && !event.shiftKey) {
+          doSend = true;
+        }
+      }
+      if (doSend) {
+        send();
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }
+  };
+
+  const changeSendMode = (mode: 'enter' | 'ctrlEnter') => {
+    sendMode.mode = mode;
+    if (mode === 'enter') setState({ ...state, sendText: '发送（Enter）' });
+    else setState({ ...state, sendText: '发送（Ctrl+Enter）' });
+  };
 
   return (
     <_ChatInput>
@@ -85,20 +127,41 @@ function ChatInput({
         />
       </div>
       <div>
-        <TextField
+        <_TextArea
           rows={3}
-          resizable={false}
-          multiline
           autoFocus
-          borderless
-          placeholder="在此输入消息…"
-          componentRef={contentEditorRef}
           value={state.content}
           onChange={(e: any) => setState({ ...state, content: e.target.value })}
+          placeholder="在此输入消息…"
+          ref={inputRef}
+          onKeyDown={onKeyPress}
         />
       </div>
       <div>
-        <PrimaryButton text="发送" onClick={send} allowDisabledFocus={true} />
+        <DefaultButton
+          primary
+          text={state.sendText}
+          onClick={send}
+          split={true}
+          menuProps={{
+            items: [
+              {
+                key: 'enter',
+                text: '发送（Enter）',
+                onClick: () => {
+                  changeSendMode('enter');
+                }
+              },
+              {
+                key: 'ctrl-enter',
+                text: '发送（Ctrl+Enter）',
+                onClick: () => {
+                  changeSendMode('ctrlEnter');
+                }
+              }
+            ]
+          }}
+        />
       </div>
       <Callout target={emojiRef.current} hidden={!state.openEmojiPicker}>
         <Suspense fallback={<Spinner size={SpinnerSize.xSmall} />}>
@@ -125,6 +188,40 @@ const _ChatInput = styled.div`
     justify-content: flex-end;
     padding: 0.5rem;
   }
+`;
+
+const _TextArea = styled.textarea`
+  font-family: "Segoe UI", "Segoe UI Web (West European)", "Segoe UI",
+    -apple-system, BlinkMacSystemFont, Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+  font-weight: 400;
+  box-shadow: none;
+  margin-top: 0px;
+  margin-right: 0px;
+  margin-bottom: 0px;
+  margin-left: 0px;
+  padding-top: 6px;
+  padding-right: 12px;
+  padding-bottom: 0px;
+  padding-left: 12px;
+  box-sizing: border-box;
+  color: rgb(51, 51, 51);
+  width: 100%;
+  min-width: 0px;
+  text-overflow: ellipsis;
+  resize: none;
+  min-height: inherit;
+  line-height: 17px;
+  flex-grow: 1;
+  border-radius: 0px;
+  border-width: initial;
+  border-style: none;
+  border-color: initial;
+  border-image: initial;
+  background: none transparent;
+  outline: 0px;
+  overflow: auto;
 `;
 
 export default observer(ChatInput);

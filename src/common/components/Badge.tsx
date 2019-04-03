@@ -1,5 +1,5 @@
-import React from 'react';
-import styled from 'styled-components'; 
+import React from "react";
+import styled from "styled-components";
 
 export default function Badge({
   count,
@@ -18,15 +18,15 @@ export default function Badge({
 }
 
 const _Badge = styled.div`
-  background-color: #FF4500;
+  background-color: #ff4500;
   display: inline-block;
   min-width: 10px;
-  padding: .25em .625em;
-  font-size: 0.3rem; 
+  padding: 0.25em 0.5em;
+  font-size: 1px; //0.3rem;
   color: #fff;
   line-height: 1;
   vertical-align: baseline;
   white-space: nowrap;
-  text-align: center; 
+  text-align: center;
   border-radius: 0;
 `;

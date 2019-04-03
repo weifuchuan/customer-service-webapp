@@ -1,15 +1,15 @@
-import Avatar from '@/common/components/Avatar';
-import Badge from '@/common/components/Badge';
-import Scrollable from '@/common/components/Scrollable';
-import { AccountBaseInfo, IOnlineOfflinePushPayload } from '@/common/im';
-import message from '@/common/kit/message';
-import { GetProps } from '@/common/kit/types';
-import colors from '@/common/styles/colors';
-import { autorun } from 'mobx';
-import { observer, useObservable } from 'mobx-react-lite';
-import React, { useEffect } from 'react';
-import styled, { StyledComponent } from 'styled-components';
-import { useImClient } from './store';
+import Avatar from "@/common/components/Avatar";
+import Badge from "@/common/components/Badge";
+import Scrollable from "@/common/components/Scrollable";
+import { AccountBaseInfo, IOnlineOfflinePushPayload } from "@/common/im";
+import message from "@/common/kit/message";
+import { GetProps } from "@/common/kit/types";
+import colors from "@/common/styles/colors";
+import { autorun } from "mobx";
+import { observer, useObservable } from "mobx-react-lite";
+import React, { useEffect } from "react";
+import styled, { StyledComponent } from "styled-components";
+import { useImClient } from "./store";
 
 const ContactList = observer(
   ({
@@ -32,17 +32,17 @@ const ContactList = observer(
         message.info(`“${msg.nickName}”已下线。`, 1);
       };
 
-      imClient.bus.addListener('online', online);
-      imClient.bus.addListener('offline', offline);
+      imClient.bus.addListener("online", online);
+      imClient.bus.addListener("offline", offline);
 
       return () => {
-        imClient.bus.removeListener('online', online);
-        imClient.bus.removeListener('offline', offline);
+        imClient.bus.removeListener("online", online);
+        imClient.bus.removeListener("offline", offline);
       };
     }, []);
 
     return (
-      <Scrollable height={'100%'} width={'100%'}>
+      <Scrollable height={"100%"} width={"100%"}>
         {accountList.length === 0 ? (
           <_Empty>
             <span>无</span>
@@ -54,7 +54,7 @@ const ContactList = observer(
             else if (a.lastMsgSendAt < b.lastMsgSendAt) return 1;
             return 0;
           })
-          .map((account) => {
+          .map(account => {
             return (
               <ContactItem
                 account={account}
@@ -115,9 +115,11 @@ const ContactItem = observer(
         />
         <div>
           <span>{account.nickName}</span>
-          <span style={{ color: colors.DarkSlateGray }}>
-            {account.isOnline ? '' : '（离线）'}
-          </span>
+          {account.isOnline ? null : (
+            <span style={{ color: colors.DarkSlateGray, fontSize: "0.8rem" }}>
+              （离线）
+            </span>
+          )}
         </div>
         {selected ? null : <Badge count={remindCount} />}
       </_ContactItem>
@@ -126,7 +128,7 @@ const ContactItem = observer(
 );
 
 const _ContactItem: StyledComponent<
-  'div',
+  "div",
   any,
   { selected: boolean },
   never
@@ -150,5 +152,6 @@ const _ContactItem: StyledComponent<
       props.selected ? colors.PaleTurquoise : colors.Azure};
   }
 `;
+
 
 export default ContactList;

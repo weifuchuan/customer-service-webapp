@@ -4,9 +4,11 @@ global.__DEV__ = true;
 import { ImClient } from "../src/common/im";
 import WebSocket from "ws";
 
+const log = require("single-line-log").stdout;
+
 const imClientList: ImClient[] = [];
 
-const clientCount = 10000;
+const clientCount = 200;
 
 const waiterIdList = ["1008601", "1008602", "1008603"];
 
@@ -36,15 +38,17 @@ for (const id of waiterIdList) {
   console.log(`starting...`);
 
   let iter = imClientList.values();
-  for (let j = 0; j < clientCount; ) {
+  for (let j = 0; j < clientCount;) {
     const arr = [];
     for (let i = 0; i < 50; i++) {
       const cli = iter.next();
+      if (cli.done) break;
       j++;
       cli.value.start();
       arr.push(cli.value.startPromise);
     }
     await Promise.all(arr);
+    log(`started ${j} clients`)
   }
 
   // for (const cli of imClientList) {
@@ -63,7 +67,7 @@ for (const id of waiterIdList) {
 
   function* genWaiter(): IterableIterator<ImClient> {
     let i = 0;
-    for (;;) {
+    for (; ;) {
       if (i == 3) {
         i = 0;
       }
@@ -84,7 +88,7 @@ for (const id of waiterIdList) {
   const end = Date.now();
 
   console.log(
-    `sned ${2 * 100 * waiterList.length * imClientList.length} msgs at`,
+    `send ${2 * 100 * waiterList.length * imClientList.length} msgs at`,
     end - begin,
     "ms"
   );
