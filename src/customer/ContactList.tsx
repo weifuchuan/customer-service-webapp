@@ -69,11 +69,7 @@ const ContactItem = observer(
     onClick?: () => void;
   }) => {
     const imClient = useImClient();
-
-    // const state = useObservable({
-    //   remindCount: 0
-    // });
-
+    
     const room = imClient.otherIdToRoom.get(account.id);
 
     const remindCount = room
@@ -87,28 +83,6 @@ const ContactItem = observer(
         imClient.fetchRoomInfo(1, account.id);
       }
     }, [account.id]);
-
-    //
-    // useEffect(
-    //   () => {
-    //     const close = autorun(async () => {
-    //       if (imClient.otherIdToRoom.has(account.id)) {
-    //         const roomKey = imClient.otherIdToRoom.get(account.id)!.roomKey;
-    //         if (imClient.roomKeyToRoom.has(roomKey)) {
-    //           state.remindCount =
-    //             imClient.roomKeyToRoom.get(roomKey)!.remindCount || 0;
-    //         } else {
-    //           await imClient.fetchRoomInfo(1, account.id);
-    //         }
-    //       } else {
-    //         await imClient.fetchRoomInfo(1, account.id);
-    //       }
-    //     });
-    //
-    //     return close;
-    //   },
-    //   [ account ]
-    // );
 
     return (
       <_ContactItem selected={!!selected} onClick={onClick}>
