@@ -32,6 +32,7 @@ export function render(
     (window as any).store = store;
     (window as any).toJS = toJS;
     (window as any).im = imClient;
+    (window as any).Im = ImClient;
 
     imClient.bus.addListener('remind', (payload: any) =>
       console.log('remind', toJS(payload))

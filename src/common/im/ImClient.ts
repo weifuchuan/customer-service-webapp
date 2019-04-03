@@ -15,7 +15,7 @@ import makeWebSocketObservable, {
 } from 'rxjs-websockets';
 import { ImPacket } from './ImPacket';
 import { Command } from './enums';
-import { observable, computed, action, flow, runInAction } from 'mobx';
+import { observable, computed, action, flow, runInAction, set } from 'mobx';
 import {
   IPayload,
   ICallRespPayload,
@@ -34,6 +34,7 @@ import uniq from 'lodash/uniq';
 import differenceWith from 'lodash/differenceWith';
 import log from '@/common/kit/functions/log';
 import React from 'react';
+import isNullOrUndef from '../kit/functions/isNullOrUndef';
 
 const ob = observable;
 
@@ -353,6 +354,7 @@ export class ImClient {
             let sender = this.idToAccount.get(payload.from)!;
             if (!sender && this.me!.id !== payload.from) {
               sender = yield this.fetchAccountBaseInfo(payload.from);
+              this.subscribeOnlineNotify([ sender.id ]);
             }
             // 5. append msg from this remind to msg list
             if (!this.roomKeyToMessageList.has(room.roomKey)) {
@@ -432,6 +434,8 @@ export class ImClient {
   async fetchAccountBaseInfo(id: string) {
     const ret = await this.call('fetchAccountBaseInfo', { id });
     if (ret && ret.state === 'ok') {
+      if (isNullOrUndef(ret.account.isOnline))
+        set(ret.account, 'isOnline', false);
       const account = ob(ret.account as AccountBaseInfo);
       const i = this.accounts.findIndex((acc) => acc.id === account.id);
       if (i !== -1) {
@@ -470,6 +474,12 @@ export class ImClient {
   async fetchAccountListBaseInfo(idList: string[]) {
     const ret = await this.call('fetchAccountListBaseInfo', { idList });
     const list = (ret.accountList as AccountBaseInfo[]) || [];
+    list.map((a) => {
+      if (isNullOrUndef(a.isOnline)) {
+        set(a, 'isOnline', false);
+      }
+      return ob(a);
+    });
     runInAction(() => {
       patchToModelArray(list, this.accounts);
     });
@@ -520,7 +530,13 @@ export class ImClient {
 
   async fetchWaiters() {
     const ret = await this.call('fetchWaiters');
-    const waiterList = ret.waiterList as (AccountBaseInfo)[];
+    const waiterList = ((ret.waiterList as (AccountBaseInfo)[]) || [])
+      .map((x) => {
+        if (isNullOrUndef(x.isOnline)) {
+          set(x, 'isOnline', false);
+        }
+        return ob(x);
+      });
     this.waiters.splice(0, this.waiters.length, ...waiterList);
     this.subscribeOnlineNotify(waiterList.map((x) => x.id));
     return waiterList;

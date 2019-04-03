@@ -29,7 +29,7 @@ function ChatInput({
   const [ state, setState ] = useState({
     openEmojiPicker: false,
     content: '',
-    sendText: '发送（Enter）' as '发送（Enter）' | '发送（Ctrl+Enter）'
+    sendText: '发送(Enter)' as '发送(Enter)' | '发送(Ctrl+Enter)'
   });
 
   const sendMode = useObject({
@@ -103,8 +103,8 @@ function ChatInput({
 
   const changeSendMode = (mode: 'enter' | 'ctrlEnter') => {
     sendMode.mode = mode;
-    if (mode === 'enter') setState({ ...state, sendText: '发送（Enter）' });
-    else setState({ ...state, sendText: '发送（Ctrl+Enter）' });
+    if (mode === 'enter') setState({ ...state, sendText: '发送(Enter)' });
+    else setState({ ...state, sendText: '发送(Ctrl+Enter)' });
   };
 
   return (
