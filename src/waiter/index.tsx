@@ -11,6 +11,7 @@ import {
 import { config as _config } from './config';
 import { initializeIcons } from '@uifabric/icons';
 import { toJS } from 'mobx';
+import * as mobx from 'mobx';
 import EventEmitter from 'wolfy87-eventemitter';
 import { ImClient } from '@/common/im/ImClient';
 
@@ -33,6 +34,7 @@ export function render(
     (window as any).toJS = toJS;
     (window as any).im = imClient;
     (window as any).Im = ImClient;
+    (window as any).mobx = mobx;
 
     imClient.bus.addListener('remind', (payload: any) =>
       console.log('remind', toJS(payload))
@@ -55,3 +57,19 @@ render();
 
 // @ts-ignore
 window.render = render;
+
+var renderBtn = document.getElementById('render')!;
+var urlInput = document.getElementById('id')! as HTMLInputElement;
+
+renderBtn.onclick = function() {
+  if (urlInput.value) {
+    render({
+      url:
+        (__DEV__
+          ? 'ws://127.0.0.1:7777?id='
+          : 'ws://http://123.207.28.107:7777?id=') + urlInput.value
+    });
+  } else {
+    render();
+  }
+};

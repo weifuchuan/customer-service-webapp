@@ -15,7 +15,16 @@ import makeWebSocketObservable, {
 } from 'rxjs-websockets';
 import { ImPacket } from './ImPacket';
 import { Command } from './enums';
-import { observable, computed, action, flow, runInAction, set } from 'mobx';
+import {
+  observable,
+  computed,
+  action,
+  flow,
+  runInAction,
+  set,
+  isObservable,
+  isObservableProp
+} from 'mobx';
 import {
   IPayload,
   ICallRespPayload,
@@ -385,8 +394,11 @@ export class ImClient {
             let i = this.waiters.findIndex((a) => a.id === packet.payload.id);
             if (i !== -1) {
               isOnlineOld = !!this.waiters[i].isOnline;
-              this.waiters[i].isOnline =
-                packet.command === Command.COMMAND_ONLINE_PUSH;
+              set(
+                this.waiters[i],
+                'isOnline',
+                packet.command === Command.COMMAND_ONLINE_PUSH
+              ); 
             } else {
               this.waiters.push({
                 ...packet.payload,
@@ -397,8 +409,11 @@ export class ImClient {
             let i = this.accounts.findIndex((a) => a.id === packet.payload.id);
             if (i !== -1) {
               isOnlineOld = !!this.accounts[i].isOnline;
-              this.accounts[i].isOnline =
-                packet.command === Command.COMMAND_ONLINE_PUSH;
+              set(
+                this.accounts[i],
+                'isOnline',
+                packet.command === Command.COMMAND_ONLINE_PUSH
+              ); 
             } else {
               this.accounts.push({
                 ...packet.payload,
@@ -433,10 +448,8 @@ export class ImClient {
 
   async fetchAccountBaseInfo(id: string) {
     const ret = await this.call('fetchAccountBaseInfo', { id });
-    if (ret && ret.state === 'ok') {
-      if (isNullOrUndef(ret.account.isOnline))
-        set(ret.account, 'isOnline', false);
-      const account = ob(ret.account as AccountBaseInfo);
+    if (ret && ret.state === 'ok') { 
+      const account = ret.account as AccountBaseInfo;
       const i = this.accounts.findIndex((acc) => acc.id === account.id);
       if (i !== -1) {
         this.accounts[i] = account;
@@ -473,13 +486,7 @@ export class ImClient {
 
   async fetchAccountListBaseInfo(idList: string[]) {
     const ret = await this.call('fetchAccountListBaseInfo', { idList });
-    const list = (ret.accountList as AccountBaseInfo[]) || [];
-    list.map((a) => {
-      if (isNullOrUndef(a.isOnline)) {
-        set(a, 'isOnline', false);
-      }
-      return ob(a);
-    });
+    const list = (ret.accountList as AccountBaseInfo[]) || []; 
     runInAction(() => {
       patchToModelArray(list, this.accounts);
     });
@@ -530,13 +537,7 @@ export class ImClient {
 
   async fetchWaiters() {
     const ret = await this.call('fetchWaiters');
-    const waiterList = ((ret.waiterList as (AccountBaseInfo)[]) || [])
-      .map((x) => {
-        if (isNullOrUndef(x.isOnline)) {
-          set(x, 'isOnline', false);
-        }
-        return ob(x);
-      });
+    const waiterList = (ret.waiterList as (AccountBaseInfo)[]) || []; 
     this.waiters.splice(0, this.waiters.length, ...waiterList);
     this.subscribeOnlineNotify(waiterList.map((x) => x.id));
     return waiterList;
@@ -558,15 +559,11 @@ export class ImClient {
   private static observableship<T>(arr: T[]) {
     const _push = arr.push;
     (arr as any).push = function(...args: T[]) {
-      return _push.bind(arr)(
-        ...args.map((arg) => (typeof arg === 'object' ? ob(arg) : arg))
-      );
+      return _push.bind(arr)(...observableArgs<T>(args));
     }.bind(arr);
     const _unshift = arr.unshift;
     (arr as any).unshift = function(...args: T[]) {
-      return _unshift.bind(arr)(
-        ...args.map((arg) => (typeof arg === 'object' ? ob(arg) : arg))
-      );
+      return _unshift.bind(arr)(...observableArgs<T>(args));
     }.bind(arr);
   }
 }
@@ -592,4 +589,25 @@ export interface Page<Model = any> {
   totalPage: number;
   pageSize: number;
   list: Model[];
+}
+
+function observableArgs<T>(args: T[]) {
+  return args.map((arg) => {
+    if (typeof arg === 'object') {
+      if (isObservable(arg)) {
+        for (let key in arg) {
+          if (!isObservableProp(arg, key)) {
+            set(
+              arg,
+              key,
+              typeof arg[key] === 'object' ? ob(arg[key]) : arg[key]
+            );
+          }
+        }
+      } else {
+        arg = ob(arg);
+      }
+    }
+    return arg;
+  });
 }
