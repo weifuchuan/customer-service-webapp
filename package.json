@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "start": "cross-env NODE_ENV=development BABEL_ENV=development PORT=3001 node -r babel-register-ts ./scripts/start.ts",
-    "build": "cross-env NODE_ENV=production BABEL_ENV=production PUBLIC_PATH=\"https://fuchuansia.github.io/cs/\" node -r babel-register-ts ./scripts/build.ts",
+    "build": "cross-env NODE_ENV=production BABEL_ENV=production PUBLIC_PATH=\"/\" node -r babel-register-ts ./scripts/build.ts",
     "test": "cross-env NODE_ENV=test BABEL_ENV=test jest",
     "tsc": "tsc --watch",
     "bench": "node -r babel-register-ts bench/index.ts"
